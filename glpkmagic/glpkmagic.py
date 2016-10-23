@@ -81,11 +81,11 @@ class GLPKMagics(Magics):
         %%model <name of model>
         '''
         # Get interactive shell
-        ip = self.shell 
+        ip = self.shell
 
         # Get access to glpk store, create it if it doesn't exist
         glpk_store_exists = ip.ev("'_glpk_store' in globals()")
-        if not glpk_store_exists: 
+        if not glpk_store_exists:
             glpk_store = GLPKStore()
             ip.user_ns['_glpk_store'] = glpk_store
         else:
@@ -112,11 +112,11 @@ class GLPKMagics(Magics):
         %%data <name of data>
         '''
         # Get interactive shell
-        ip = self.shell 
+        ip = self.shell
 
         # Get access to glpk store, create it if it doesn't exist
         glpk_store_exists = ip.ev("'_glpk_store' in globals()")
-        if not glpk_store_exists: 
+        if not glpk_store_exists:
             glpk_store = GLPKStore()
             ip.user_ns['_glpk_store'] = glpk_store
         else:
@@ -144,13 +144,13 @@ class GLPKMagics(Magics):
             --nolog
             --result=
         '''
-        # Helper function: print log 
+        # Helper function: print log
         def print_log():
             temp_log_file.seek(0)
             for line in temp_log_file:
                 # Don't print GLPK log lines regarding which files
                 # the model and data are being read from
-                if not (line.startswith('Reading model section') or 
+                if not (line.startswith('Reading model section') or
                         line.startswith('Reading data section')):
                     # Replace the temporary model file name
                     # with something more human-readable
@@ -174,13 +174,13 @@ class GLPKMagics(Magics):
             temp_log_file.close()
             temp_out_file.close()
 
-        # Parse arguments 
+        # Parse arguments
         # Get model name and data name
         # Get namespace variable names
         args_ok = True
         try:
-            opts, args = self.parse_options(line, '', 'nolog', 'result=', 
-                                            'simplexpresolve', mode='list') 
+            opts, args = self.parse_options(line, '', 'nolog', 'result=',
+                                            'simplexpresolve', mode='list')
         except GetoptError:
             args_ok = False
 
@@ -206,7 +206,7 @@ class GLPKMagics(Magics):
         ip = self.shell
 
         # Get glpk store from user namespace
-        try: 
+        try:
             glpk_store = ip.user_ns['_glpk_store']
         except KeyError:
             print('Model and data storage is missing.'
@@ -263,7 +263,7 @@ class GLPKMagics(Magics):
         lp.name = model_name + ' ' + data_name if data_name else model_name
 
         # Set message level of the solver
-        msg_lev = lp.MSG_ALL 
+        msg_lev = lp.MSG_ALL
 
         # Solve the model using the appropriate method
         if lp.kind is float:
@@ -273,7 +273,7 @@ class GLPKMagics(Magics):
             lp.simplex(msg_lev=msg_lev, presolve=simplexpresolve)
         else:
             # MIP: branch-and-cut
-            lp.intopt(msg_lev=msg_lev, presolve=True)
+            lp.integer(msg_lev=msg_lev, presolve=True)
 
         # Print log file to shell
         if not nolog:
@@ -321,7 +321,7 @@ class GLPKMagics(Magics):
         ip = self.shell
 
         # Get glpk store
-        glpk_store = ip.user_ns['_glpk_store']        
+        glpk_store = ip.user_ns['_glpk_store']
 
         # Print models
         glpk_store.list_models()
@@ -332,7 +332,7 @@ class GLPKMagics(Magics):
         ip = self.shell
 
         # Get glpk store
-        glpk_store = ip.user_ns['_glpk_store']        
+        glpk_store = ip.user_ns['_glpk_store']
 
         # Print models
         glpk_store.list_data()
@@ -343,7 +343,7 @@ class GLPKMagics(Magics):
         ip = self.shell
 
         # Get glpk store
-        glpk_store = ip.user_ns['_glpk_store']        
+        glpk_store = ip.user_ns['_glpk_store']
 
         # Print models
         glpk_store.clear_models()
@@ -354,7 +354,7 @@ class GLPKMagics(Magics):
         ip = self.shell
 
         # Get glpk store
-        glpk_store = ip.user_ns['_glpk_store']        
+        glpk_store = ip.user_ns['_glpk_store']
 
         # Print models
         glpk_store.clear_data()
@@ -372,7 +372,7 @@ def load_ipython_extension(ipython):
 
     # Create glpk store in user namespace if it doesn't exist
     glpk_store_exists = ipython.ev("'_glpk_store' in globals()")
-    if not glpk_store_exists: 
+    if not glpk_store_exists:
         glpk_store = GLPKStore()
         ipython.user_ns['_glpk_store'] = glpk_store
 
