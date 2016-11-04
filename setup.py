@@ -1,12 +1,11 @@
 from setuptools import setup
 
-setup(name='glpkmagic',
+setup(name='gmplmagic',
       version='0.1',
-      description='IPython magic commands for GLPK',
+      description='GMPL/MathProg Magics for IPython/Jupyter',
+      url='http://nelson.uhan.me',
       author='Nelson Uhan',
       author_email='nelson@uhan.me',
-      packages=['glpkmagic'],
-      install_requires=[
-          'ipython'
-      ],
-      zip_safe=False)
+      packages=['gmplmagic'],
+      install_requires=['glpk>=0.4.2', 'ipython'],
+)

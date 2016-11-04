@@ -1,10 +1,13 @@
+import os
+import glpk
+import shutil
+import uuid
+import tempfile
 from IPython.core.magic import Magics, magics_class, cell_magic, line_magic
-from tempfile import NamedTemporaryFile
-from glpk import env, LPX
 from getopt import GetoptError
 
 
-class GLPKStore(object):
+class GMPLStore(object):
     def __init__(self):
         self.model = {}
         self.data = {}
@@ -36,7 +39,7 @@ class GLPKStore(object):
         self.data = {}
 
 
-class GLPKResult(object):
+class GMPLResult(object):
     def __init__(self):
         self.status = None
         self.objval = None
@@ -74,7 +77,7 @@ class GLPKResult(object):
 
 
 @magics_class
-class GLPKMagics(Magics):
+class GMPLMagics(Magics):
     @cell_magic
     def model(self, line, cell):
         '''
@@ -83,13 +86,13 @@ class GLPKMagics(Magics):
         # Get interactive shell
         ip = self.shell
 
-        # Get access to glpk store, create it if it doesn't exist
-        glpk_store_exists = ip.ev("'_glpk_store' in globals()")
-        if not glpk_store_exists:
-            glpk_store = GLPKStore()
-            ip.user_ns['_glpk_store'] = glpk_store
+        # Get access to gmpl store, create it if it doesn't exist
+        gmpl_store_exists = ip.ev("'_gmpl_store' in globals()")
+        if not gmpl_store_exists:
+            gmpl_store = GMPLStore()
+            ip.user_ns['_gmpl_store'] = gmpl_store
         else:
-            glpk_store = ip.user_ns['_glpk_store']
+            gmpl_store = ip.user_ns['_gmpl_store']
 
         # Get user's model name
         opts, args = self.parse_options(line, '', mode='list')
@@ -99,11 +102,11 @@ class GLPKMagics(Magics):
         else:
             model_name = args[0]
 
-        # Put user's model in glpk store
+        # Put user's model in gmpl store
         # Add a new line to the end to avoid stupid GLPK warnings
         cell += '\n'
-        glpk_store.add_model(model_name, cell)
-        ip.user_ns['_glpk_store'] = glpk_store
+        gmpl_store.add_model(model_name, cell)
+        ip.user_ns['_gmpl_store'] = gmpl_store
         print("Model '{0}' stored.".format(model_name))
 
     @cell_magic
@@ -114,13 +117,13 @@ class GLPKMagics(Magics):
         # Get interactive shell
         ip = self.shell
 
-        # Get access to glpk store, create it if it doesn't exist
-        glpk_store_exists = ip.ev("'_glpk_store' in globals()")
-        if not glpk_store_exists:
-            glpk_store = GLPKStore()
-            ip.user_ns['_glpk_store'] = glpk_store
+        # Get access to gmpl store, create it if it doesn't exist
+        gmpl_store_exists = ip.ev("'_gmpl_store' in globals()")
+        if not gmpl_store_exists:
+            gmpl_store = GMPLStore()
+            ip.user_ns['_gmpl_store'] = gmpl_store
         else:
-            glpk_store = ip.user_ns['_glpk_store']
+            gmpl_store = ip.user_ns['_gmpl_store']
 
         # Get user's data name
         opts, args = self.parse_options(line, '', mode='list')
@@ -130,9 +133,9 @@ class GLPKMagics(Magics):
         else:
             data_name = args[0]
 
-        # Put user's data in glpk store
-        glpk_store.add_data(data_name, cell)
-        ip.user_ns['_glpk_store'] = glpk_store
+        # Put user's data in gmpl store
+        gmpl_store.add_data(data_name, cell)
+        ip.user_ns['_gmpl_store'] = gmpl_store
         print("Data '{0}' stored.".format(data_name))
 
     @line_magic
@@ -144,36 +147,6 @@ class GLPKMagics(Magics):
             --nolog
             --result=
         '''
-        # Helper function: print log
-        def print_log():
-            temp_log_file.seek(0)
-            for line in temp_log_file:
-                # Don't print GLPK log lines regarding which files
-                # the model and data are being read from
-                if not (line.startswith('Reading model section') or
-                        line.startswith('Reading data section')):
-                    # Replace the temporary model file name
-                    # with something more human-readable
-                    line = line.replace(
-                        temp_model_file.name + ':',
-                        "Model '{0}' line ".format(model_name)
-                    )
-
-                    # Replace the temporary data file name
-                    # with something more human-readable
-                    line = line.replace(
-                        temp_data_file.name + ':',
-                        "Data '{0}' line ".format(data_name)
-                    )
-
-                    print(line, end='')
-
-        # Helper function: close temporary files
-        def close_temp_files():
-            temp_model_file.close()
-            temp_log_file.close()
-            temp_out_file.close()
-
         # Parse arguments
         # Get model name and data name
         # Get namespace variable names
@@ -205,96 +178,129 @@ class GLPKMagics(Magics):
         # Get IPython shell
         ip = self.shell
 
-        # Get glpk store from user namespace
+        # Get gmpl store from user namespace
         try:
-            glpk_store = ip.user_ns['_glpk_store']
+            gmpl_store = ip.user_ns['_gmpl_store']
         except KeyError:
             print('Model and data storage is missing.'
                   'Try storing your model and data again.')
             return
 
         # Terminal hook helper function
-        env.term_on = True
-        env.term_hook = lambda output: temp_log_file.write(output)
+        glpk.env.term_on = True
+        glpk.env.term_hook = lambda output: log_file.write(output)
 
-        # Create temporary files for model, log, and out files
-        temp_model_file = NamedTemporaryFile(mode='w+t', suffix='.mod')
-        temp_data_file = NamedTemporaryFile(mode='w+t', suffix='.dat')
-        temp_log_file = NamedTemporaryFile(mode='w+t', suffix='.log')
-        temp_out_file = NamedTemporaryFile(mode='w+t', suffix='.out')
+        # Create temporary directory
+        temp_dir = tempfile.mkdtemp()
 
-        # Write temporary model file, seek to beginning
-        # Check if model exists in glpk store
+        # Create base_name 
+        base_name = uuid.uuid4().hex
+
+        # Create output file name
+        out_file_name = os.path.join(temp_dir, base_name + '.out')
+
+        # Create log file
+        log_file_name = os.path.join(temp_dir, base_name + '.log')
+        log_file = open(log_file_name, 'w')
+
+        # Create model file
+        # Check if model exists in gmpl store
+        model_file_name = os.path.join(temp_dir, base_name + '.mod')
+        model_file = open(model_file_name, 'w')
         try:
-            temp_model_file.write(glpk_store.model[model_name])
+            model_file.write(gmpl_store.model[model_name])
+            model_file.write('\n')
         except KeyError:
             print("Model '{0}' does not exist.".format(model_name))
-            close_temp_files()
             return
-        temp_model_file.write('\n')
-        temp_model_file.seek(0)
+        finally:
+            model_file.close()
 
-        # Write temporary data file, seek to beginning
-        # Check if data exists in glpk store
+        # Create data file, if data is specified
+        # Check if data exists in gmpl store
         if data_name:
+            data_file_name = os.path.join(temp_dir, base_name + '.dat')
+            data_file = open(data_file_name, 'w')
             try:
-                temp_data_file.write(glpk_store.data[data_name])
+                data_file.write(gmpl_store.data[data_name])
+                data_file.write('\n')
             except KeyError:
                 print("Data '{0}' does not exist.".format(data_name))
-                close_temp_files()
                 return
-            temp_data_file.write('\n')
-            temp_data_file.seek(0)
-
-        # Load GMPL files into GLPK
-        if data_name:
-            gmp = (temp_model_file.name, temp_data_file.name, None)
+            finally:
+                data_file.close()
         else:
-            gmp = temp_model_file.name
+            data_file_name = None
 
+        # Load .mod and .dat files into GLPK
         try:
-            lp = LPX(gmp=gmp)
+            lp = glpk.LPX(gmp=(model_file_name, data_file_name, None))
         except RuntimeError:
-            print_log()
-            close_temp_files()
             return
-
-        # Give the model a name in GLPK
-        lp.name = model_name + ' ' + data_name if data_name else model_name
-
-        # Set message level of the solver
-        msg_lev = lp.MSG_ALL
-
-        # Solve the model using the appropriate method
-        if lp.kind is float:
-            # LP: simplex method
-            # Turn off presolve to get information about infeasibility
-            #   and unboundedness
-            lp.simplex(msg_lev=msg_lev, presolve=simplexpresolve)
         else:
-            # MIP: branch-and-cut
-            lp.integer(msg_lev=msg_lev, presolve=True)
+            # Give the model a name in GLPK
+            if data_name:
+                lp.name = '({0}, {1})'.format(model_name, data_name)
+            else:
+                lp.name = model_name
+
+            # Set message level of the solver
+            msg_lev = lp.MSG_ALL
+
+            # Solve the model using the appropriate method
+            if lp.kind is float:
+                # LP: simplex method
+                # Turn off presolve to get information about infeasibility
+                #   and unboundedness
+                lp.simplex(msg_lev=msg_lev, presolve=simplexpresolve)
+            else:
+                # MIP: branch-and-cut
+                lp.integer(msg_lev=msg_lev, presolve=True)
+        finally:
+            # Close log file
+            log_file.close()
 
         # Print log file to shell
         if not nolog:
-            print_log()
-
-        # Write temporary output file
-        # Print temporary output file to shell
-        if not nolog:
-            if lp.kind is float:
-                lp.write(sol=temp_out_file.name)
-            elif lp.kind is int:
-                lp.write(mip=temp_out_file.name)
-            temp_out_file.seek(0)
+            log_file = open(log_file_name, 'r')
+            log_text = ''
+            for line in log_file:
+                # Don't print GLPK log lines regarding which files
+                # the model and data are being read from
+                if not (line.startswith('Reading model section') or
+                        line.startswith('Reading data section') or
+                        line.startswith('Writing basic solution') or
+                        line.startswith('Writing MIP solution')):
+                    # Replace the temporary model file name
+                    # with something more human-readable
+                    # line = line.replace(model_file.name + ':',
+                                        # "Error around line ")
+                    log_text += line
+            log_file.close()
+            print(log_text)
             print("========================================" +
                   "========================================")
-            for line in temp_out_file:
-                print(line, end='')
+
+        # Write output file
+        out_file = open(out_file_name, 'w')
+        if lp.kind is float:
+            lp.write(sol=out_file_name)
+        elif lp.kind is int:
+            lp.write(mip=out_file_name)
+        out_file.close()
+
+        # Print output file to shell
+        if not nolog:
+            out_file = open(out_file_name, 'r')
+            out_text = ''
+            for line in out_file:
+                out_text += line
+            out_file.close()
+            print(out_text)
 
         # Create GLPK output object if desired
         if result_name:
-            result = GLPKResult()
+            result = GMPLResult()
 
             # Determine status
             result.status = lp.status
@@ -312,8 +318,9 @@ class GLPKMagics(Magics):
             # Put information in the user namespace, if desired
             ip.user_ns[result_name] = result
 
-        # Close the temporary files
-        close_temp_files()
+        # Remove the temporary files
+        shutil.rmtree(temp_dir)
+
 
     @line_magic
     def listmodels(self, line):
@@ -321,43 +328,43 @@ class GLPKMagics(Magics):
         ip = self.shell
 
         # Get glpk store
-        glpk_store = ip.user_ns['_glpk_store']
+        gmpl_store = ip.user_ns['_gmpl_store']
 
         # Print models
-        glpk_store.list_models()
+        gmpl_store.list_models()
 
     @line_magic
     def listdata(self, line):
         # Get IPython shell
         ip = self.shell
 
-        # Get glpk store
-        glpk_store = ip.user_ns['_glpk_store']
+        # Get gmpl store
+        gmpl_store = ip.user_ns['_gmpl_store']
 
         # Print models
-        glpk_store.list_data()
+        gmpl_store.list_data()
 
     @line_magic
     def clearmodels(self, line):
         # Get IPython shell
         ip = self.shell
 
-        # Get glpk store
-        glpk_store = ip.user_ns['_glpk_store']
+        # Get gmpl store
+        gmpl_store = ip.user_ns['_gmpl_store']
 
         # Print models
-        glpk_store.clear_models()
+        gmpl_store.clear_models()
 
     @line_magic
     def cleardata(self, line):
         # Get IPython shell
         ip = self.shell
 
-        # Get glpk store
-        glpk_store = ip.user_ns['_glpk_store']
+        # Get gmpl store
+        gmpl_store = ip.user_ns['_gmpl_store']
 
         # Print models
-        glpk_store.clear_data()
+        gmpl_store.clear_data()
 
 
 def load_ipython_extension(ipython):
@@ -370,10 +377,10 @@ def load_ipython_extension(ipython):
     )
     ipython.run_cell(raw_cell)
 
-    # Create glpk store in user namespace if it doesn't exist
-    glpk_store_exists = ipython.ev("'_glpk_store' in globals()")
-    if not glpk_store_exists:
-        glpk_store = GLPKStore()
-        ipython.user_ns['_glpk_store'] = glpk_store
+    # Create gmpl store in user namespace if it doesn't exist
+    gmpl_store_exists = ipython.ev("'_gmpl_store' in globals()")
+    if not gmpl_store_exists:
+        gmpl_store = GMPLStore()
+        ipython.user_ns['_gmpl_store'] = gmpl_store
 
-    ipython.register_magics(GLPKMagics)
+    ipython.register_magics(GMPLMagics)
