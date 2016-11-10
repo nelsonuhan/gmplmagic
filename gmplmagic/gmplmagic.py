@@ -38,6 +38,12 @@ class GMPLStore(object):
     def clear_data(self):
         self.data = {}
 
+    def show_model(self, name):
+        print(self.model[name])
+
+    def show_data(self, name):
+        print(self.data[name])
+
 
 class GMPLResult(object):
     def __init__(self):
@@ -365,6 +371,62 @@ class GMPLMagics(Magics):
 
         # Print models
         gmpl_store.clear_data()
+
+    @line_magic
+    def showmodel(self, line):
+        '''
+        %showmodel <name of model>
+        '''
+        # Parse arguments
+        # Get model name
+        args_ok = True
+        try:
+            opts, args = self.parse_options(line, '')
+        except GetoptError:
+            args_ok = False
+
+        args = args.split()
+
+        if (not args_ok) or (len(args) == 0) or (len(args) > 1):
+            print("Usage: %%showmodel <name of model>")
+            return
+
+        # Get IPython shell
+        ip = self.shell
+
+        # Get gmpl store
+        gmpl_store = ip.user_ns['_gmpl_store']
+
+        # Print model
+        gmpl_store.show_model(args[0]) 
+
+    @line_magic
+    def showdata(self, line):
+        '''
+        %showdata <name of model>
+        '''
+        # Parse arguments
+        # Get model name
+        args_ok = True
+        try:
+            opts, args = self.parse_options(line, '')
+        except GetoptError:
+            args_ok = False
+
+        args = args.split()
+
+        if (not args_ok) or (len(args) == 0) or (len(args) > 1):
+            print("Usage: %%showdata <name of model>")
+            return
+
+        # Get IPython shell
+        ip = self.shell
+
+        # Get gmpl store
+        gmpl_store = ip.user_ns['_gmpl_store']
+
+        # Print model
+        gmpl_store.show_data(args[0]) 
 
 
 def load_ipython_extension(ipython):
