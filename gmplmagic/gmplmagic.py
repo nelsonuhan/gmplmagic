@@ -49,7 +49,7 @@ class GMPLResult(object):
     def __init__(self):
         self.status = None
         self.objval = None
-        self.solution = None
+        self.variables = None
 
     def __repr__(self):
         output_string = ''
@@ -74,9 +74,9 @@ class GMPLResult(object):
         if self.objval:
             output_string += "Objective value: {0}\n".format(self.objval)
 
-        if self.solution:
+        if self.variables:
             output_string += "Decision variables:\n"
-            for var, val in self.solution.items():
+            for var, val in self.variables.items():
                 output_string += "    {0} = {1}\n".format(var, val)
 
         return output_string
@@ -317,16 +317,15 @@ class GMPLMagics(Magics):
                 result.objval = lp.obj.value
 
                 # Determine solution
-                result.solution = {}
+                result.variables = {}
                 for col in lp.cols:
-                    result.solution[col.name] = col.primal
+                    result.variables[col.name] = col.primal
 
             # Put information in the user namespace, if desired
             ip.user_ns[result_name] = result
 
         # Remove the temporary files
         shutil.rmtree(temp_dir)
-
 
     @line_magic
     def listmodels(self, line):
