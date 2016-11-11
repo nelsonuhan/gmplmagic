@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(name='gmplmagic',
       version='0.1',
-      description='GMPL/MathProg Magics for IPython/Jupyter',
+      description='GMPL/MathProg magics for IPython/Jupyter',
       url='http://nelson.uhan.me',
       author='Nelson Uhan',
       author_email='nelson@uhan.me',
