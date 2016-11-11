@@ -6,6 +6,7 @@ setup(name='gmplmagic',
       url='http://nelson.uhan.me',
       author='Nelson Uhan',
       author_email='nelson@uhan.me',
+      license='GNU GPLv3',
       packages=['gmplmagic'],
       install_requires=['glpk>=0.4.2', 'ipython'],
 )
