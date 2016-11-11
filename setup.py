@@ -3,7 +3,7 @@ from setuptools import setup
 setup(name='gmplmagic',
       version='0.1',
       description='GMPL/MathProg magics for IPython/Jupyter',
-      url='http://nelson.uhan.me',
+      url='https://github.com/nelsonuhan/gmplmagic',
       author='Nelson Uhan',
       author_email='nelson@uhan.me',
       license='GNU GPLv3',
