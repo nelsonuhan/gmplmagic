@@ -199,7 +199,7 @@ class GMPLMagics(Magics):
         # Create temporary directory
         temp_dir = tempfile.mkdtemp()
 
-        # Create base_name 
+        # Create base_name
         base_name = uuid.uuid4().hex
 
         # Create output file name
@@ -397,7 +397,7 @@ class GMPLMagics(Magics):
         gmpl_store = ip.user_ns['_gmpl_store']
 
         # Print model
-        gmpl_store.show_model(args[0]) 
+        gmpl_store.show_model(args[0])
 
     @line_magic
     def showdata(self, line):
@@ -425,18 +425,138 @@ class GMPLMagics(Magics):
         gmpl_store = ip.user_ns['_gmpl_store']
 
         # Print model
-        gmpl_store.show_data(args[0]) 
+        gmpl_store.show_data(args[0])
 
 
 def load_ipython_extension(ipython):
     # Inject JS for GMPL syntax highlighting
-    raw_cell = (
-        '''import IPython\n'''
-        '''js = "IPython.CodeCell.config_defaults.highlight_modes'''
-        '''['magic_mathprog'] = {'reg':['^%%model', '^%%data']};"\n'''
-        '''IPython.core.display.display_javascript(js, raw=True)\n'''
-    )
-    ipython.run_cell(raw_cell)
+    js_code = '''
+        CodeMirror.defineMode('mathprog', function() {
+        function wordRegexp(words) {
+          return new RegExp("^(?:" + words.join("|") + ")\\\\b", "i");
+        }
+
+        var symbolicNames = new RegExp('^[_A-Za-z\xa1-\uffff][_A-Za-z0-9\xa1-\uffff]*');
+        var delimiters = new RegExp('^(\\\\+|\\\\-|\\\\*|/|\\\\*\\\\*|\\\\^|&|<|<=|=|==|>=|>|<>|!=|\\\\:=|\\\\:|!|<<|<-)');
+        var keywords = wordRegexp(['abs', 'and', 'atan', 'binary', 'by', 'card',
+          'ceil', 'check', 'cos', 'cross', 'cross', 'data', 'default', 'diff',
+          'dimen', 'display', 'div', 'else', 'end', 'exists', 'exp', 'floor',
+          'for', 'forall', 'if', 'integer', 'inter', 'Irand224', 'length',
+          'less', 'log', 'log10', 'max', 'maximize', 'min', 'minimize', 'mod',
+          'Normal', 'Normal01', 'not', 'or', 'param', 'printf', 'prod', 'round',
+          'set', 'setof', 'sin', 'solve', 'sqrt', 'subj to', 'subject to',
+          'substr', 'sum', 'symbolic', 'symdiff', 'then', 'tr', 'trunc',
+          'Uniform', 'Uniform01', 'union', 'var', 'within', 'table', 'out',
+          'gmtime', 'str2time', 'time2str']);
+
+        function tokenIndex(stream, state) {
+          if (stream.eatWhile(/[^}]/)) {
+            state.tokenize = tokenBase;
+            return 'def';
+          };
+          stream.skipToEnd();
+          return 'def';
+        }
+
+        function tokenSubscript(stream, state) {
+          if (stream.eatWhile(/[^\]]/)) {
+            state.tokenize = tokenBase;
+            return 'def';
+          };
+          stream.skipToEnd();
+          return 'def';
+        }
+
+        function tokenComment(stream, state) {
+          if (stream.match(/^.*\*\//)) {
+            state.tokenize = tokenBase;
+            return 'comment';
+          };
+          stream.skipToEnd();
+          return 'comment';
+        }
+
+        function tokenBase(stream, state) {
+          // whitespace
+          if (stream.eatSpace()) {
+            return null;
+          }
+
+          // single-line comments
+          if (stream.match(/^#/)) {
+            stream.skipToEnd();
+            return 'comment';
+          }
+
+          // block comments
+          if (stream.match(/\/\*/)) {
+            state.tokenize = tokenComment;
+            return tokenComment(stream, state);
+          }
+
+          // numberic literals
+          if (stream.match(/^[0-9\.+-]/, false)) {
+            if (stream.match(/^[+-]?0x[0-9a-fA-F]+[ij]?/)) {
+              stream.tokenize = tokenBase;
+              return 'number'; };
+            if (stream.match(/^[+-]?\d*\.\d+([EeDd][+-]?\d+)?[ij]?/)) { return 'number'; };
+            if (stream.match(/^[+-]?\d+([EeDd][+-]?\d+)?[ij]?/)) { return 'number'; };
+          }
+
+          // string literals
+          if (stream.match(/^[\'\"].*[\'\"]/)) {
+            return 'string';
+          };
+
+          // keywords
+          if (stream.match(keywords)) {
+            return 'keyword';
+            console.log('keyword matched');
+          };
+
+          // indexing expressions
+          if (stream.match(/^{/)) {
+            state.tokenize = tokenIndex;
+            return null;
+          };
+
+          // subscripts
+          if (stream.match(/^\[/)) {
+            state.tokenize = tokenSubscript;
+            return null;
+          };
+
+          // symbolic names (variables, sets, params)
+          if (stream.match(symbolicNames)) {
+            return 'variable';
+          };
+
+          // delimiters
+          if (stream.match(delimiters)) {
+            return 'operator';
+          };
+
+          // Handle non-detected items
+          stream.next();
+          return null;
+        };
+
+        return {
+          startState: function() {
+            return {
+              tokenize: tokenBase
+            };
+          },
+
+          token: function(stream, state) {
+            return state.tokenize(stream, state);
+          }
+        };
+        });
+        IPython.CodeCell.config_defaults.highlight_modes['magic_mathprog'] = {'reg':['^%%model', '^%%data']};
+    '''
+
+    ipython.run_cell_magic('javascript', '', js_code)
 
     # Create gmpl store in user namespace if it doesn't exist
     gmpl_store_exists = ipython.ev("'_gmpl_store' in globals()")
