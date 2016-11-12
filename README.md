@@ -16,13 +16,7 @@ GMPL Magic has been tested with
 
 ## Installation
 
-First, install PyGLPK - note that the version on PyPI is outdated:
-
-```
-pip install https://github.com/bradfordboyle/pyglpk/zipball/master
-```
-
-Note that PyGLPK depends on an existing installation of GLPK. For example, on macOS, this can be accomplished by:
+First, make sure you have a working installation of GLPK. For example, on macOS, this can be accomplished with [Homebrew](http://brew.sh) by:
 
 ```
 brew update
@@ -31,6 +25,12 @@ brew install glpk
 ```
 
 (I will eventually include instructions on how to install GLPK on other operating systems.)
+
+Next, install PyGLPK - note that the version on PyPI is outdated:
+
+```
+pip install https://github.com/bradfordboyle/pyglpk/zipball/master
+```
 
 Then, install GMPL Magic:
 
