@@ -1,7 +1,7 @@
 from setuptools import setup
 
 setup(name='gmplmagic',
-      version='0.1',
+      version='0.1.1',
       description='GMPL/MathProg magics for IPython/Jupyter',
       url='https://github.com/nelsonuhan/gmplmagic',
       author='Nelson Uhan',
