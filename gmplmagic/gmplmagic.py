@@ -242,7 +242,7 @@ class GMPLMagics(Magics):
         try:
             lp = glpk.LPX(gmp=(model_file_name, data_file_name, None))
         except RuntimeError:
-            return
+            pass
         else:
             # Give the model a name in GLPK
             if data_name:
@@ -262,6 +262,35 @@ class GMPLMagics(Magics):
             else:
                 # MIP: branch-and-cut
                 lp.integer(msg_lev=msg_lev, presolve=True)
+
+            # Write output file
+            out_file = open(out_file_name, 'w')
+            if lp.kind is float:
+                lp.write(sol=out_file_name)
+            elif lp.kind is int:
+                lp.write(mip=out_file_name)
+            out_file.close()
+
+            # Create GLPK output object if desired
+            if result_name:
+                result = GMPLResult()
+
+                # Determine status
+                result.status = lp.status
+
+                # If we have an optimal or feasible solution:
+                if result.status in ['opt', 'feas']:
+                    # Determine objective value
+                    result.objval = lp.obj.value
+
+                    # Determine solution
+                    result.variables = {}
+                    for col in lp.cols:
+                        result.variables[col.name] = col.primal
+
+                # Put information in the user namespace, if desired
+                ip.user_ns[result_name] = result
+
         finally:
             # Close log file
             log_file.close()
@@ -279,50 +308,29 @@ class GMPLMagics(Magics):
                         line.startswith('Writing MIP solution')):
                     # Replace the temporary model file name
                     # with something more human-readable
-                    # line = line.replace(model_file.name + ':',
-                                        # "Error around line ")
+                    line = line.replace(model_file_name + ':', "Model: Line ")
+                    try:
+                        line = line.replace(data_file_name + ':', "Data: Line ")
+                    except TypeError:   # if data_file_name is None
+                        pass
                     log_text += line
             log_file.close()
-            print(log_text)
-            print("========================================" +
-                  "========================================")
+            print(log_text.rstrip())
 
-        # Write output file
-        out_file = open(out_file_name, 'w')
-        if lp.kind is float:
-            lp.write(sol=out_file_name)
-        elif lp.kind is int:
-            lp.write(mip=out_file_name)
-        out_file.close()
-
-        # Print output file to shell
+        # Read output file to shell
         if not nolog:
-            out_file = open(out_file_name, 'r')
-            out_text = ''
-            for line in out_file:
-                out_text += line
-            out_file.close()
-            print(out_text)
-
-        # Create GLPK output object if desired
-        if result_name:
-            result = GMPLResult()
-
-            # Determine status
-            result.status = lp.status
-
-            # If we have an optimal or feasible solution:
-            if result.status in ['opt', 'feas']:
-                # Determine objective value
-                result.objval = lp.obj.value
-
-                # Determine solution
-                result.variables = {}
-                for col in lp.cols:
-                    result.variables[col.name] = col.primal
-
-            # Put information in the user namespace, if desired
-            ip.user_ns[result_name] = result
+            try:
+                out_file = open(out_file_name, 'r')
+            except FileNotFoundError:
+                pass
+            else:
+                print("========================================" +
+                      "========================================")
+                out_text = ''
+                for line in out_file:
+                    out_text += line
+                out_file.close()
+                print(out_text)
 
         # Remove the temporary files
         shutil.rmtree(temp_dir)
