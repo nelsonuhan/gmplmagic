@@ -5,8 +5,9 @@ long_description = pypandoc.convert('README.md', 'rst')
 
 setuptools.setup(
     name='gmplmagic',
-    version='0.1.2',
+    version='0.1.3',
     description='GMPL/MathProg magics for IPython/Jupyter',
+    long_description=long_description,
     url='https://github.com/nelsonuhan/gmplmagic',
     author='Nelson Uhan',
     author_email='nelson@uhan.me',
