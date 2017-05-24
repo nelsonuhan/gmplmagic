@@ -8,7 +8,7 @@ except (IOError, ImportError):
 
 setuptools.setup(
     name='gmplmagic',
-    version='0.1.3',
+    version='0.1.4',
     description='GMPL/MathProg magics for IPython/Jupyter',
     long_description=long_description,
     url='https://github.com/nelsonuhan/gmplmagic',
